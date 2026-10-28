@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sip &amp; Puff Controller — Assistive HID Mouse</title>
+    <meta name="description" content="Sip &amp; Puff assistive mouse controller for people with motor disabilities. Configure thresholds, view live sensor data, and test sip/puff events.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- ===== Ambient floating orbs ===== -->
+    <div class="ambient-orbs" aria-hidden="true">
+        <div class="orb orb-1"></div>
+        <div class="orb orb-2"></div>
+        <div class="orb orb-3"></div>
+    </div>
+
+    <!-- ===== Navigation ===== -->
+    <nav id="main-nav" class="glass-nav">
+        <div class="nav-inner">
+            <a href="#hero" class="nav-brand">
+                <span class="brand-icon">◎</span>
+                <span class="brand-text">Sip<span class="accent">&amp;</span>Puff</span>
+            </a>
+            <ul class="nav-links">
+                <li><a href="#dashboard">Dashboard</a></li>
+                <li><a href="#terminal">Terminal</a></li>
+                <li><a href="#config">Configure</a></li>
+                <li><a href="#mapping">Mapping</a></li>
+                <li><a href="#about">About</a></li>
+            </ul>
+            <button id="nav-toggle" class="nav-hamburger" aria-label="Toggle navigation">
+                <span></span><span></span><span></span>
+            </button>
+        </div>
+    </nav>
+
+    <!-- ===== Hero Section ===== -->
+    <section id="hero" class="hero-section">
+        <div class="hero-content">
+            <div class="hero-badge">Assistive Technology · HID Mouse</div>
+            <h1>Sip &amp; Puff<br><span class="hero-highlight">Mouse Controller</span></h1>
+            <p class="hero-sub">
+                An assistive USB mouse powered by a pressure sensor and Raspberry Pi Pico&nbsp;W.
+                Gentle sips and puffs translate into precise cursor movements — empowering
+                people with motor disabilities to navigate any computer.
+            </p>
+            <div class="hero-actions">
+                <a href="#dashboard" class="btn btn-primary">
+                    <span class="btn-pulse"></span>
+                    Open Dashboard
+                </a>
+                <a href="#about" class="btn btn-ghost">Learn More →</a>
+            </div>
+            <div class="hero-stats">
+                <div class="stat-card glass-card">
+                    <span class="stat-value">4</span>
+                    <span class="stat-label">Directions</span>
+                </div>
+                <div class="stat-card glass-card">
+                    <span class="stat-value">10ms</span>
+                    <span class="stat-label">Latency</span>
+                </div>
+                <div class="stat-card glass-card">
+                    <span class="stat-value">HX710B</span>
+                    <span class="stat-label">Sensor</span>
+                </div>
+                <div class="stat-card glass-card">
+                    <span class="stat-value">USB&nbsp;HID</span>
+                    <span class="stat-label">Protocol</span>
+                </div>
+            </div>
+        </div>
+        <div class="hero-visual" aria-hidden="true">
+            <div class="pressure-ring">
+                <svg viewBox="0 0 200 200" class="ring-svg">
+                    <circle cx="100" cy="100" r="90" class="ring-track"/>
+                    <circle cx="100" cy="100" r="90" class="ring-progress" id="hero-ring"/>
+                </svg>
+                <div class="ring-center">
+                    <span class="ring-label">IDLE</span>
+                    <span class="ring-value" id="hero-pressure-val">0</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== Dashboard / Device Status ===== -->
+    <section id="dashboard" class="section">
+        <div class="section-header">
+            <h2>Device <span class="accent">Dashboard</span></h2>
+            <p>Real-time device status and live pressure visualisation</p>
+        </div>
+
+        <div class="dashboard-grid">
+            <!-- Status Cards Row -->
+            <div id="card-connection" class="dash-card glass-card">
+                <div class="card-icon connection-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83"/></svg>
+                </div>
+                <div class="card-body">
+                    <span class="card-title">Connection</span>
+                    <span class="card-value" id="status-connection">Disconnected</span>
+                </div>
+                <div class="status-dot" id="status-dot-conn"></div>
+            </div>
+
+            <div id="card-baseline" class="dash-card glass-card">
+                <div class="card-icon baseline-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h4l3-9 4 18 3-9h4"/></svg>
+                </div>
+                <div class="card-body">
+                    <span class="card-title">Baseline</span>
+                    <span class="card-value" id="status-baseline">—</span>
+                </div>
+            </div>
+
+            <div id="card-event" class="dash-card glass-card">
+                <div class="card-icon event-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg>
+                </div>
+                <div class="card-body">
+                    <span class="card-title">Last Event</span>
+                    <span class="card-value" id="status-event">—</span>
+                </div>
+            </div>
+
+            <div id="card-delta" class="dash-card glass-card">
+                <div class="card-icon delta-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20V4m0 0l-6 6m6-6l6 6"/></svg>
+                </div>
+                <div class="card-body">
+                    <span class="card-title">Current Delta</span>
+                    <span class="card-value" id="status-delta">0</span>
+                </div>
+            </div>
+
+            <!-- Live Pressure Gauge -->
+            <div class="dash-card glass-card gauge-card">
+                <h3 class="card-section-title">Live Pressure Gauge</h3>
+                <div class="gauge-container">
+                    <div class="gauge-bar-wrap">
+                        <div class="gauge-zone gauge-zone-hard-sip">Hard Sip</div>
+                        <div class="gauge-zone gauge-zone-soft-sip">Soft Sip</div>
+                        <div class="gauge-zone gauge-zone-idle">Idle</div>
+                        <div class="gauge-zone gauge-zone-soft-puff">Soft Puff</div>
+                        <div class="gauge-zone gauge-zone-hard-puff">Hard Puff</div>
+                        <div class="gauge-needle" id="gauge-needle"></div>
+                    </div>
+                    <div class="gauge-labels">
+                        <span>−200k</span><span>−180k</span><span>−20k</span><span>0</span><span>+20k</span><span>+180k</span><span>+200k</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Live Waveform -->
+            <div class="dash-card glass-card waveform-card">
+                <div class="waveform-header">
+                    <h3 class="card-section-title">Pressure Waveform</h3>
+                    <div class="waveform-controls">
+                        <button id="btn-waveform-pause" class="btn-icon" title="Pause/Resume">⏸</button>
+                        <button id="btn-waveform-clear" class="btn-icon" title="Clear">✕</button>
+                    </div>
+                </div>
+                <canvas id="waveform-canvas" width="800" height="220"></canvas>
+            </div>
+
+            <!-- Cursor Preview -->
+            <div class="dash-card glass-card cursor-card">
+                <h3 class="card-section-title">Cursor Movement Preview</h3>
+                <div class="cursor-arena" id="cursor-arena">
+                    <div class="cursor-dot" id="cursor-dot"></div>
+                    <div class="arena-crosshair"></div>
+                    <div class="arena-label-up">Hard Puff ↑</div>
+                    <div class="arena-label-down">Hard Sip ↓</div>
+                    <div class="arena-label-left">Soft Sip ←</div>
+                    <div class="arena-label-right">Soft Puff →</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== Serial Terminal ===== -->
+    <section id="terminal" class="section">
+        <div class="section-header">
+            <h2>Serial <span class="accent">Terminal</span></h2>
+            <p>Connect to your Sip &amp; Puff device over USB serial — replaces PuTTY for testing</p>
+        </div>
+
+        <div class="terminal-wrapper glass-card">
+            <div class="terminal-toolbar">
+                <div class="terminal-dots">
+                    <span class="dot dot-red"></span>
+                    <span class="dot dot-yellow"></span>
+                    <span class="dot dot-green"></span>
+                </div>
+                <span class="terminal-title">Sip &amp; Puff Serial Console</span>
+                <div class="terminal-actions">
+                    <div class="port-selector">
+                        <button id="btn-scan-ports" class="btn btn-sm btn-outline" title="Scan for COM ports">
+                            ⟳ Scan Ports
+                        </button>
+                        <select id="port-select" class="select-port">
+                            <option value="">Select COM Port</option>
+                        </select>
+                        <select id="baud-select" class="select-baud">
+                            <option value="9600">9600</option>
+                            <option value="19200">19200</option>
+                            <option value="38400">38400</option>
+                            <option value="57600">57600</option>
+                            <option value="115200" selected>115200</option>
+                        </select>
+                    </div>
+                    <button id="btn-connect" class="btn btn-sm btn-accent">Connect</button>
+                    <button id="btn-disconnect" class="btn btn-sm btn-outline" disabled>Disconnect</button>
+                    <button id="btn-clear-term" class="btn btn-sm btn-outline">Clear</button>
+                    <button id="btn-autoscroll" class="btn btn-sm btn-outline active" title="Toggle autoscroll">↓ Auto</button>
+                    <button id="btn-export-log" class="btn btn-sm btn-outline" title="Export log to file">💾 Export</button>
+                </div>
+            </div>
+
+            <div id="terminal-output" class="terminal-output" role="log" aria-live="polite">
+                <div class="term-line term-info">[ Sip &amp; Puff Terminal ]  Press "Connect" or use Web Serial to begin.</div>
+                <div class="term-line term-info">Expected output format: raw=&lt;value&gt; delta=&lt;value&gt; event=&lt;0-4&gt;</div>
+                <div class="term-line term-info">Events: 0=IDLE  1=SOFT_PUFF  2=SOFT_SIP  3=HARD_PUFF  4=HARD_SIP</div>
+            </div>
+
+            <div class="terminal-input-bar">
+                <span class="prompt-char">❯</span>
+                <input id="terminal-input" type="text" class="terminal-input" placeholder="Type a command and press Enter…" autocomplete="off" spellcheck="false">
+                <button id="btn-send" class="btn btn-sm btn-accent">Send</button>
+            </div>
+
+            <!-- Demo mode controls -->
+            <div class="demo-bar">
+                <span class="demo-label">Demo Mode (no device needed):</span>
+                <button id="btn-demo-start" class="btn btn-sm btn-ghost">▶ Start Simulation</button>
+                <button id="btn-demo-stop" class="btn btn-sm btn-ghost" disabled>⏹ Stop</button>
+                <button id="btn-demo-puff" class="btn btn-sm btn-puff">💨 Puff</button>
+                <button id="btn-demo-sip" class="btn btn-sm btn-sip">🌬 Sip</button>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== Configuration Panel ===== -->
+    <section id="config" class="section">
+        <div class="section-header">
+            <h2>Device <span class="accent">Configuration</span></h2>
+            <p>Tune thresholds, movement speed, and sensor parameters. Changes preview in real-time in the dashboard above.</p>
+        </div>
+
+        <div class="config-grid">
+            <!-- Thresholds -->
+            <div class="config-card glass-card">
+                <div class="config-card-header">
+                    <h3>Pressure Thresholds</h3>
+                    <span class="config-badge">Core</span>
+                </div>
+                <div class="config-field">
+                    <label for="cfg-soft-thresh">
+                        Soft Threshold
+                        <span class="field-hint">Minimum delta to register a soft sip/puff</span>
+                    </label>
+                    <div class="range-group">
+                        <input id="cfg-soft-thresh" type="range" min="5000" max="50000" step="1000" value="20000" class="range-input">
+                        <output id="cfg-soft-thresh-val" class="range-value">20000</output>
+                    </div>
+                </div>
+                <div class="config-field">
+                    <label for="cfg-hard-thresh">
+                        Hard Threshold
+                        <span class="field-hint">Minimum delta to register a hard sip/puff</span>
+                    </label>
+                    <div class="range-group">
+                        <input id="cfg-hard-thresh" type="range" min="30000" max="300000" step="1000" value="180000" class="range-input">
+                        <output id="cfg-hard-thresh-val" class="range-value">180000</output>
+                    </div>
+                </div>
+                <div class="config-field">
+                    <label for="cfg-move-step">
+                        Move Step <span class="unit">(px/report)</span>
+                        <span class="field-hint">Pixels moved per USB HID report</span>
+                    </label>
+                    <div class="range-group">
+                        <input id="cfg-move-step" type="range" min="1" max="20" step="1" value="5" class="range-input">
+                        <output id="cfg-move-step-val" class="range-value">5</output>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sensor Tuning -->
+            <div class="config-card glass-card">
+                <div class="config-card-header">
+                    <h3>Sensor Tuning</h3>
+                    <span class="config-badge badge-secondary">Advanced</span>
+                </div>
+                <div class="config-field">
+                    <label for="cfg-timeout">
+                        Sensor Timeout <span class="unit">(ms)</span>
+                        <span class="field-hint">Max wait for HX710B data-ready signal</span>
+                    </label>
+                    <div class="range-group">
+                        <input id="cfg-timeout" type="range" min="10" max="500" step="10" value="100" class="range-input">
+                        <output id="cfg-timeout-val" class="range-value">100</output>
+                    </div>
+                </div>
+                <div class="config-field">
+                    <label for="cfg-baseline-div">
+                        Baseline Smoothing Divisor
+                        <span class="field-hint">Higher = slower baseline drift adaptation (currently /32)</span>
+                    </label>
+                    <div class="range-group">
+                        <input id="cfg-baseline-div" type="range" min="4" max="128" step="4" value="32" class="range-input">
+                        <output id="cfg-baseline-div-val" class="range-value">32</output>
+                    </div>
+                </div>
+                <div class="config-field">
+                    <label for="cfg-poll-interval">
+                        Poll Interval <span class="unit">(ms)</span>
+                        <span class="field-hint">Delay between sensor reads in the main loop</span>
+                    </label>
+                    <div class="range-group">
+                        <input id="cfg-poll-interval" type="range" min="1" max="50" step="1" value="10" class="range-input">
+                        <output id="cfg-poll-interval-val" class="range-value">10</output>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Hardware Info -->
+            <div class="config-card glass-card">
+                <div class="config-card-header">
+                    <h3>Hardware Info</h3>
+                    <span class="config-badge badge-info">Read-only</span>
+                </div>
+                <div class="hw-info-grid">
+                    <div class="hw-row"><span class="hw-key">MCU</span><span class="hw-val">RP2040 (Pico W)</span></div>
+                    <div class="hw-row"><span class="hw-key">Sensor</span><span class="hw-val">HX710B Pressure ADC</span></div>
+                    <div class="hw-row"><span class="hw-key">SCK Pin</span><span class="hw-val">GPIO 14</span></div>
+                    <div class="hw-row"><span class="hw-key">DATA Pin</span><span class="hw-val">GPIO 15</span></div>
+                    <div class="hw-row"><span class="hw-key">USB VID / PID</span><span class="hw-val">0xCAFE / 0x0001</span></div>
+                    <div class="hw-row"><span class="hw-key">USB Protocol</span><span class="hw-val">HID Mouse (TinyUSB)</span></div>
+                    <div class="hw-row"><span class="hw-key">ADC Resolution</span><span class="hw-val">24-bit</span></div>
+                    <div class="hw-row"><span class="hw-key">Report Rate</span><span class="hw-val">~100 Hz (10 ms cycle)</span></div>
+                </div>
+            </div>
+
+            <!-- Firmware snippet preview -->
+            <div class="config-card glass-card">
+                <div class="config-card-header">
+                    <h3>Generated #define Preview</h3>
+                    <span class="config-badge badge-code">C Code</span>
+                </div>
+                <pre class="code-preview" id="code-preview"><code>#define SOFT_THRESHOLD   20000
+#define HARD_THRESHOLD   180000
+#define MOVE_STEP        5
+#define HX710B_TIMEOUT_MS 100</code></pre>
+                <button id="btn-copy-defines" class="btn btn-sm btn-outline btn-full">📋 Copy to Clipboard</button>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== Event Mapping ===== -->
+    <section id="mapping" class="section">
+        <div class="section-header">
+            <h2>Event <span class="accent">Mapping</span></h2>
+            <p>How each sip/puff intensity maps to cursor movement</p>
+        </div>
+
+        <div class="mapping-visual">
+            <div class="mapping-center">
+                <div class="mapping-ring-outer">
+                    <div class="mapping-ring-inner">
+                        <span class="mapping-cursor-icon">🖱</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mapping-card mapping-up glass-card">
+                <div class="mapping-arrow">↑</div>
+                <h4>Hard Puff</h4>
+                <p>Δ &gt; <span class="mapping-thresh" id="map-hard-val">180000</span></p>
+                <span class="mapping-action">Cursor Up</span>
+            </div>
+            <div class="mapping-card mapping-down glass-card">
+                <div class="mapping-arrow">↓</div>
+                <h4>Hard Sip</h4>
+                <p>Δ &lt; −<span class="mapping-thresh" id="map-hard-sip-val">180000</span></p>
+                <span class="mapping-action">Cursor Down</span>
+            </div>
+            <div class="mapping-card mapping-left glass-card">
+                <div class="mapping-arrow">←</div>
+                <h4>Soft Sip</h4>
+                <p>Δ &lt; −<span class="mapping-thresh" id="map-soft-sip-val">20000</span></p>
+                <span class="mapping-action">Cursor Left</span>
+            </div>
+            <div class="mapping-card mapping-right glass-card">
+                <div class="mapping-arrow">→</div>
+                <h4>Soft Puff</h4>
+                <p>Δ &gt; <span class="mapping-thresh" id="map-soft-val">20000</span></p>
+                <span class="mapping-action">Cursor Right</span>
+            </div>
+        </div>
+
+        <!-- Event classification table -->
+        <div class="event-table-wrap glass-card">
+            <table class="event-table">
+                <thead>
+                    <tr>
+                        <th>Event ID</th>
+                        <th>Name</th>
+                        <th>Delta Condition</th>
+                        <th>Mouse Action</th>
+                        <th>Colour</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><code>0</code></td>
+                        <td>EVT_IDLE</td>
+                        <td>|Δ| &lt; Soft Threshold</td>
+                        <td>No movement</td>
+                        <td><span class="colour-dot idle-dot"></span>Neutral</td>
+                    </tr>
+                    <tr>
+                        <td><code>1</code></td>
+                        <td>EVT_SOFT_PUFF</td>
+                        <td>Soft ≤ Δ &lt; Hard</td>
+                        <td>→ Right (<span class="inline-val" id="map-step">5</span> px)</td>
+                        <td><span class="colour-dot puff-dot"></span>Teal</td>
+                    </tr>
+                    <tr>
+                        <td><code>2</code></td>
+                        <td>EVT_SOFT_SIP</td>
+                        <td>−Hard &lt; Δ ≤ −Soft</td>
+                        <td>← Left (<span class="inline-val" id="map-step2">5</span> px)</td>
+                        <td><span class="colour-dot sip-dot"></span>Amber</td>
+                    </tr>
+                    <tr>
+                        <td><code>3</code></td>
+                        <td>EVT_HARD_PUFF</td>
+                        <td>Δ ≥ Hard</td>
+                        <td>↑ Up (<span class="inline-val" id="map-step3">5</span> px)</td>
+                        <td><span class="colour-dot hard-puff-dot"></span>Cyan</td>
+                    </tr>
+                    <tr>
+                        <td><code>4</code></td>
+                        <td>EVT_HARD_SIP</td>
+                        <td>Δ ≤ −Hard</td>
+                        <td>↓ Down (<span class="inline-val" id="map-step4">5</span> px)</td>
+                        <td><span class="colour-dot hard-sip-dot"></span>Red</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <!-- ===== About Section ===== -->
+    <section id="about" class="section about-section">
+        <div class="section-header">
+            <h2>About <span class="accent">the Project</span></h2>
+            <p>Building accessible technology, one breath at a time</p>
+        </div>
+
+        <div class="about-grid">
+            <div class="about-card glass-card">
+                <div class="about-icon">🎯</div>
+                <h3>Purpose</h3>
+                <p>This Sip &amp; Puff mouse controller is an assistive device designed for individuals with motor disabilities. By interpreting gentle breath pressure through an HX710B sensor, users can control their computer cursor without hands.</p>
+            </div>
+            <div class="about-card glass-card">
+                <div class="about-icon">⚙️</div>
+                <h3>How It Works</h3>
+                <p>The HX710B pressure sensor converts breath into a 24-bit digital value. The RP2040 reads this via a clocked serial protocol, subtracts a running baseline, classifies the delta as soft/hard sip/puff, and sends USB HID mouse reports at ~100 Hz.</p>
+            </div>
+            <div class="about-card glass-card">
+                <div class="about-icon">🔧</div>
+                <h3>Tech Stack</h3>
+                <p><strong>Hardware:</strong> Raspberry Pi Pico W, HX710B ADC<br>
+                   <strong>Firmware:</strong> C with Pico SDK + TinyUSB<br>
+                   <strong>UI:</strong> Vanilla HTML/CSS/JS with Web Serial API</p>
+            </div>
+            <div class="about-card glass-card">
+                <div class="about-icon">♿</div>
+                <h3>Accessibility</h3>
+                <p>Designed with universal access in mind — standard USB HID compatibility means it works on any operating system without drivers. This dashboard uses Web Serial for configuration and testing.</p>
+            </div>
+        </div>
+
+        <div class="architecture-card glass-card">
+            <h3>System Architecture</h3>
+            <div class="arch-flow">
+                <div class="arch-node">
+                    <div class="arch-node-icon">🌬️</div>
+                    <span>Breath</span>
+                </div>
+                <div class="arch-arrow">→</div>
+                <div class="arch-node">
+                    <div class="arch-node-icon">📊</div>
+                    <span>HX710B<br>Sensor</span>
+                </div>
+                <div class="arch-arrow">→</div>
+                <div class="arch-node">
+                    <div class="arch-node-icon">🧠</div>
+                    <span>RP2040<br>Classify</span>
+                </div>
+                <div class="arch-arrow">→</div>
+                <div class="arch-node">
+                    <div class="arch-node-icon">🔌</div>
+                    <span>USB HID<br>Report</span>
+                </div>
+                <div class="arch-arrow">→</div>
+                <div class="arch-node">
+                    <div class="arch-node-icon">🖱️</div>
+                    <span>Cursor<br>Movement</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ===== Footer ===== -->
+    <footer class="site-footer">
+        <div class="footer-inner">
+            <span class="footer-brand">◎ Sip &amp; Puff Controller</span>
+            <span class="footer-copy">Assistive HID Project · Built with ♥ for accessibility</span>
+        </div>
+    </footer>
+
+    <script src="app.js"></script>
+</body>
+</html>
